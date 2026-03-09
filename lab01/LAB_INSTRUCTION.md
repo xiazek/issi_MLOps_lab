@@ -352,38 +352,7 @@ And then generate key from the start (point 2).
 
 ---
 
-## 6. Testing (0.5 points)
-
-Testing is an important aspect of software development. It helps to ensure that the application
-works as expected and there are no obvious bugs. We will use `pytest` as our testing framework.
-
-1. Install the `pytest` package using `uv`.
-2. Prepare `.env.test` file containing the variables that should be loaded to `Settings` object while tests run.
-   It should have the same keys as expected production configuration, but fake values.
-3. Prepare `pytest.ini` file with the configuration for `pytest`. We could also put this in `pyproject.toml`,
-   this depends on personal preference.
-    ```toml
-    [pytest]
-    env_files = ./config/.env.test
-    ```
-4. Create `tests` directory, where we will implement tests.
-5. Implement the basic test for settings. It should check if settings are loaded correctly
-   and contain all the expected values.
-6. Write test cases for the application that cover the functionality:
-7. Run the tests using the following command:
-    ```bash
-    uv run pytest tests -rP
-    ```
-    If you encounter a problem where `pytest` can't load `src` module, try adding the project
-    root explicitly to its PYTHONPATH config:
-    ```
-    PYTHONPATH = .
-    ```
-8. Commit the changes.
-
----
-
-## 7. Webserver and application setup (0.5 points)
+## 6. Webserver and application setup (0.5 points)
 
 In machine learning, [FastAPI](https://fastapi.tiangolo.com/) is the most popular choice
 for implementing the webserver. It is a modern, high-performance web framework for building
@@ -433,6 +402,37 @@ uv run uvicorn app:app --reload --port 8000
    the health status of the application.
 6. Write tests for the application routes. Verify if selected routes return the expected responses.
 7. Commit the changes.
+
+---
+
+## 7. Testing (0.5 points)
+
+Testing is an important aspect of software development. It helps to ensure that the application
+works as expected and there are no obvious bugs. We will use `pytest` as our testing framework.
+
+1. Install the `pytest` package using `uv`.
+2. Prepare `.env.test` file containing the variables that should be loaded to `Settings` object while tests run.
+   It should have the same keys as expected production configuration, but fake values.
+3. Prepare `pytest.ini` file with the configuration for `pytest`. We could also put this in `pyproject.toml`,
+   this depends on personal preference.
+    ```toml
+    [pytest]
+    env_files = ./config/.env.test
+    ```
+4. Create `tests` directory, where we will implement tests.
+5. Implement the basic test for settings. It should check if settings are loaded correctly
+   and contain all the expected values.
+6. Write test cases for the application that cover that server returns valid response for /health and / endpoints. Use [TestClient](https://fastapi.tiangolo.com/tutorial/testing/#using-testclient)
+7. Run the tests using the following command:
+    ```bash
+    uv run pytest tests -rP
+    ```
+    If you encounter a problem where `pytest` can't load `src` module, try adding the project
+    root explicitly to its PYTHONPATH config:
+    ```
+    PYTHONPATH = .
+    ```
+8. Commit the changes.
 
 ---
 
