@@ -503,47 +503,49 @@ it manages multi-container environments. However, it's also very useful even for
 as it uses a very readable YAML configuration file.
 
 1. Make sure you have Docker installed on your local machine, e.g. run `docker ps`.
-2. Let's containerize our application, i.e. put code inside an isolated container.
-   Create a Dockerfile (literally `Dockerfile` text file) in the project directory 
-   and define the Docker image for the application. Change the directory names if necessary.
+
+2. Create a `.dockerignore` file in the project directory to exclude unnecessary files from the build:
+    ```
+    .venv/
+    __pycache__/
+    *.pyc
+    .git/
+    .pytest_cache/
+    ```
+    This prevents the local virtual environment from being copied into the image, which is important since virtual environments are platform-specific.
+
+3. Let's containerize our application using modern Docker best practices. Create a Dockerfile in the project directory:
     ```dockerfile
     # Dockerfile
     
-    # Use a minimal Python image as the base
-    FROM python:3.12-slim
+    # Use the official uv image with Python 3.12 pre-installed
+    FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
     
     # Set the working directory in the container
     WORKDIR /app
     
-    # Install required system dependencies
-    RUN apt-get update && apt-get install -y \
-        curl libsnappy-dev make gcc g++ libc6-dev libffi-dev \
-        && rm -rf /var/lib/apt/lists/*
+    # Enable bytecode compilation for faster startup times
+    ENV UV_COMPILE_BYTECODE=1
     
-    # Install uv package manager
-    RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-        export PATH="/root/.local/bin:$PATH"
+    # Use copy mode instead of hardlinks when using cache mounts
+    ENV UV_LINK_MODE=copy
     
-    # Add uv to PATH
-    ENV PATH="/root/.local/bin:$PATH"
-    
-    # Copy only dependency files first (to leverage caching)
-    COPY lab/pyproject.toml lab/uv.lock ./
-    
-    # Install project dependencies using uv
-    ENV UV_PROJECT_ENVIRONMENT=/usr/local
-    RUN uv sync
+    # Install dependencies first (separate layer for better caching)
+    # --mount=type=cache: reuses downloaded packages between builds
+    # --mount=type=bind: temporarily mounts files without copying them
+    # --no-install-project: First installs only dependencies, then the project
+    # --no-dev: Excludes development dependencies from production image
+    RUN --mount=type=cache,target=/root/.cache/uv \
+        --mount=type=bind,source=uv.lock,target=uv.lock \
+        --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+        uv sync --frozen --no-install-project --no-dev
     
     # Copy the rest of the application code
-    COPY lab . 
+    ADD . /app
     
-    # Expose the application port
-    EXPOSE 8000
-    
-    # Run the application with uv
-    CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-    ```
-
+    # Install the project itself
+    RUN --mount=type=cache,target=/root/.cache/uv \
+        uv sync --frozen --no-dev
 3. Build the Docker image with command below. This will download base image, apply all layers, and save the
    resulting image in your local Docker registry. `-t` or `--tag` adds a named tag to the image, allowing
    you to use that tag instead of randomly generated ID.
@@ -554,19 +556,21 @@ as it uses a very readable YAML configuration file.
 
 4. Run the Docker container. We select the image by providing a tag. We also **expose** a port - by default
    Docker containers run in a complete network isolation, but here we want to access the server running in
-   the container from our host machine.
+   the container from our host machine. The `--rm` flag automatically removes the container when it stops.
     ```bash
     docker run --rm -p 8000:8000 ml-app
     ```
     To see the running containers, run `docker ps`.
 
 5. Open the browser and navigate to http://localhost:8000. Verify that the application is running.
-6. Commit the changes.
-7. To stop and turn off the container, you can use either container ID or its name. You can check them
-   with `docker ps`.
-```bash
-docker stop <container-id>
-```
+
+6. To stop the container, press `Ctrl+C` in the terminal where it's running or
+   ```bash
+   docker ps -a # then <copy container-id> you want to delete
+   docker stop <container-id>
+   ```
+7. Commit the changes.
+
 
 Last thing will be setting up Docker Compose. Here, we have only a single container with our server,
 but we could also add databases (e.g. Postgres, Redis) or frontend (e.g. React). We can also define
@@ -579,20 +583,104 @@ that we previously passed manually in the commandline to Docker. This makes it v
 for single container applications, as we don't have to type everything each time.
 
 1. Make sure you have Docker Compose installed, e.g. run `docker compose ps`
-2. Create `docker-compose.yaml` file:
+
+2. Create `compose.yaml` file:
     ```yaml
     services:
       ml-app:
         build: .
         ports:
           - "8000:8000"
+        develop:
+          # Watch configuration for development
+          # Syncs code changes without rebuilding the image
+          watch:
+            # Sync the working directory with /app in container
+            - action: sync
+              path: .
+              target: /app
+              # Exclude the virtual environment (platform-specific)
+              ignore:
+                - .venv/
+            # Rebuild image when dependencies change
+            - action: rebuild
+              path: ./pyproject.toml
     ```
+
 3. Run the application:
     ```bash
     docker compose up
     ```
+
 4. Open the browser and navigate to http://localhost:8000. Verify that the application is running.
-5. Turn off with:
+
+5. (Optional) For development with live reload, use the watch feature:
+    ```bash
+    docker compose watch
+    ```
+    This will automatically sync code changes to the container without rebuilding.
+
+6. Turn off with:
     ```bash
     docker compose down
     ```
+
+**Docker Compose watch explained:**
+- `sync` action: Copies file changes into the running container immediately
+- `ignore: .venv/`: Prevents syncing the local virtual environment (which is platform-specific)
+- `rebuild` action: Triggers a full image rebuild when dependencies change
+- This setup allows you to edit code locally and see changes reflected in the container without manual rebuildsontainer dependencies, such as "application is ready when all containers are up" or "run frontend
+after backend containers are up". Either publicly available images can be used, or our custom ones,
+possibly with multiple Dockerfiles defining distinct services.
+
+Docker Compose uses YAML format for configuration. It is very readable, and we can put options there
+that we previously passed manually in the commandline to Docker. This makes it very useful even
+for single container applications, as we don't have to type everything each time.
+
+1. Make sure you have Docker Compose installed, e.g. run `docker compose ps`
+2. Create `compose.yaml` file:
+    ```yaml
+    services:
+      ml-app:
+        build: .
+        ports:
+          - "8000:8000"
+        develop:
+          # Watch configuration for development
+          # Syncs code changes without rebuilding the image
+          watch:
+            # Sync the working directory with /app in container
+            - action: sync
+              path: .
+              target: /app
+              # Exclude the virtual environment (platform-specific)
+              ignore:
+                - .venv/
+            # Rebuild image when dependencies change
+            - action: rebuild
+              path: ./pyproject.toml
+    ```
+
+3. Run the application:
+    ```bash
+    docker compose up
+    ```
+
+4. Open the browser and navigate to http://localhost:8000. Verify that the application is running.
+
+5. (Optional) For development with live reload, use the watch feature:
+    ```bash
+    docker compose watch
+    ```
+    This will automatically sync code changes to the container without rebuilding.
+
+6. Turn off with:
+    ```bash
+    docker compose down
+    ```
+
+**Docker Compose watch explained:**
+- `sync` action: Copies file changes into the running container immediately
+- `ignore: .venv/`: Prevents syncing the local virtual environment (which is platform-specific)
+- `rebuild` action: Triggers a full image rebuild when dependencies change
+- This setup allows you to edit code locally and see changes reflected in the container without manual rebuilds
