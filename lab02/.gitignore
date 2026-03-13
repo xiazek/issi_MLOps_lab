@@ -3,4 +3,5 @@ data/*.db
 data/homework/*.csv
 
 output
-scripts
+scripts/*
+!scripts/*.rb
