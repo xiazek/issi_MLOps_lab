@@ -160,9 +160,9 @@ uv add pre-commit
 ```yaml
 repos:
    - repo: https://github.com/astral-sh/ruff-pre-commit
-     rev: v0.9.5
+     rev: v0.15.6
      hooks:
-        - id: ruff  # Linter
+        - id: ruff-check  # Linter
           args: [--fix]  # Ensure fixes are applied
         - id: ruff-format  # Formatter
 ```
@@ -291,7 +291,11 @@ Secrets require **encryption** and secure storage as files. For usage in the act
 to decrypt them and export as environment variables. We will use [sops package](https://github.com/getsops/sops)
 for this.
 
-1. Install the sops, following [the documentation](https://github.com/getsops/sops).
+1. Install the sops, following [the documentation](https://github.com/getsops/sops) or [stable releases](https://github.com/getsops/sops/releases). And verify with:
+
+```bash
+sops --version
+```
 
 2. To encrypt and decrypt files, you'll need a [GPG key](https://confluence.atlassian.com/bitbucketserver/using-gpg-keys-913477014.html).
    Generate one using the following command:
@@ -306,8 +310,8 @@ gpg --list-secret-keys --keyid-format LONG
 
 It should look like: `sec rsa4096/0F861E6EC136294F` and YOUR_KEY_ID is:  `0F861E6EC136294F `
 
-4. GPG uses private and public key pair. Public key is chared with others and used for encryption. Private
-   key should **never** be shared, however! For now, we will export the public key to a file. In the
+4. GPG uses private and public key pair. Public key is shared with others and used for encryption. Private
+   key should **never** be shared. For now, we will export the public key to a file. In the
    command below, replace `YOUR_KEY_ID` with your actual key ID.
 ```bash
 gpg --armor --export YOUR_KEY_ID > public_key.asc
@@ -551,9 +555,9 @@ as it uses a very readable YAML configuration file.
     # Copy the rest of the application code
     ADD . /app
     
-    # Install the project itself
-    RUN --mount=type=cache,target=/root/.cache/uv \
-        uv sync --frozen --no-dev
+    # Run the application with uvicorn, binding to all interfaces on port 8000
+    CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ```
 3. Build the Docker image with command below. This will download base image, apply all layers, and save the
    resulting image in your local Docker registry. `-t` or `--tag` adds a named tag to the image, allowing
    you to use that tag instead of randomly generated ID.
@@ -592,7 +596,7 @@ for single container applications, as we don't have to type everything each time
 
 1. Make sure you have Docker Compose installed, e.g. run `docker compose ps`
 
-2. Create `compose.yaml` file:
+2. Create `docker-compose.yaml` file:
     ```yaml
     services:
       ml-app:
