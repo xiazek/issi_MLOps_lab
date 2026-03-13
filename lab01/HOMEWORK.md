@@ -15,6 +15,7 @@ Instructions:
     - `pyproject.toml`
     - `uv.lock`
 - To run the inference mentioned below, you need:
+    - `scikit-learn`
     - `clean-text`
     - `joblib`
     - `torch`
