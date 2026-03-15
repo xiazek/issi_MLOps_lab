@@ -360,7 +360,7 @@ And then generate key from the start (point 2).
    - modify `Settings` class to also load the environment variable with secret
 
 10. Run `main.py` and check the value of the secret.
-11. Commit the changes.
+11. Commit the changes. Keep in mind to encrypt the file before pushing to your repo. 
 
 ---
 
