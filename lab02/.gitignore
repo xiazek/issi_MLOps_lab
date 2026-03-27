@@ -1,0 +1,7 @@
+data/*.csv
+data/*.db
+data/homework/*.csv
+
+output
+scripts/*
+!scripts/*.rb
