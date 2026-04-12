@@ -101,7 +101,15 @@ dependencies in the current projects from the main system one. It will also crea
 - `pyproject.toml` - used for specifying dependencies
 - `.python-version` - stating Python version used
 
-To activate it, on Linux and macOS run `source .venv/bin/activate`, or `.venv\Scripts\activate` on Windows.
+To activate it, on Linux and macOS run:
+```bash
+source .venv/bin/activate
+```
+or on Windows:
+
+```bash
+.venv\Scripts\activate
+```
 
 Verify the Python version by running the following command:
 ```bash
@@ -152,9 +160,9 @@ uv add pre-commit
 ```yaml
 repos:
    - repo: https://github.com/astral-sh/ruff-pre-commit
-     rev: v0.9.5
+     rev: v0.15.6
      hooks:
-        - id: ruff  # Linter
+        - id: ruff-check  # Linter
           args: [--fix]  # Ensure fixes are applied
         - id: ruff-format  # Formatter
 ```
@@ -283,7 +291,11 @@ Secrets require **encryption** and secure storage as files. For usage in the act
 to decrypt them and export as environment variables. We will use [sops package](https://github.com/getsops/sops)
 for this.
 
-1. Install the sops, following [the documentation](https://github.com/getsops/sops).
+1. Install the sops, following [the documentation](https://github.com/getsops/sops) or [stable releases](https://github.com/getsops/sops/releases). And verify with:
+
+```bash
+sops --version
+```
 
 2. To encrypt and decrypt files, you'll need a [GPG key](https://confluence.atlassian.com/bitbucketserver/using-gpg-keys-913477014.html).
    Generate one using the following command:
@@ -298,8 +310,8 @@ gpg --list-secret-keys --keyid-format LONG
 
 It should look like: `sec rsa4096/0F861E6EC136294F` and YOUR_KEY_ID is:  `0F861E6EC136294F `
 
-4. GPG uses private and public key pair. Public key is chared with others and used for encryption. Private
-   key should **never** be shared, however! For now, we will export the public key to a file. In the
+4. GPG uses private and public key pair. Public key is shared with others and used for encryption. Private
+   key should **never** be shared. For now, we will export the public key to a file. In the
    command below, replace `YOUR_KEY_ID` with your actual key ID.
 ```bash
 gpg --armor --export YOUR_KEY_ID > public_key.asc
@@ -348,42 +360,11 @@ And then generate key from the start (point 2).
    - modify `Settings` class to also load the environment variable with secret
 
 10. Run `main.py` and check the value of the secret.
-11. Commit the changes.
+11. Commit the changes. Keep in mind to encrypt the file before pushing to your repo. 
 
 ---
 
-## 6. Testing (0.5 points)
-
-Testing is an important aspect of software development. It helps to ensure that the application
-works as expected and there are no obvious bugs. We will use `pytest` as our testing framework.
-
-1. Install the `pytest` package using `uv`.
-2. Prepare `.env.test` file containing the variables that should be loaded to `Settings` object while tests run.
-   It should have the same keys as expected production configuration, but fake values.
-3. Prepare `pytest.ini` file with the configuration for `pytest`. We could also put this in `pyproject.toml`,
-   this depends on personal preference.
-    ```toml
-    [pytest]
-    env_files = ./config/.env.test
-    ```
-4. Create `tests` directory, where we will implement tests.
-5. Implement the basic test for settings. It should check if settings are loaded correctly
-   and contain all the expected values.
-6. Write test cases for the application that cover the functionality:
-7. Run the tests using the following command:
-    ```bash
-    uv run pytest tests -rP
-    ```
-    If you encounter a problem where `pytest` can't load `src` module, try adding the project
-    root explicitly to its PYTHONPATH config:
-    ```
-    PYTHONPATH = .
-    ```
-8. Commit the changes.
-
----
-
-## 7. Webserver and application setup (0.5 points)
+## 6. Webserver and application setup (0.5 points)
 
 In machine learning, [FastAPI](https://fastapi.tiangolo.com/) is the most popular choice
 for implementing the webserver. It is a modern, high-performance web framework for building
@@ -433,6 +414,37 @@ uv run uvicorn app:app --reload --port 8000
    the health status of the application.
 6. Write tests for the application routes. Verify if selected routes return the expected responses.
 7. Commit the changes.
+
+---
+
+## 7. Testing (0.5 points)
+
+Testing is an important aspect of software development. It helps to ensure that the application
+works as expected and there are no obvious bugs. We will use `pytest` as our testing framework.
+
+1. Install the `pytest` package using `uv`.
+2. Prepare `.env.test` file containing the variables that should be loaded to `Settings` object while tests run.
+   It should have the same keys as expected production configuration, but fake values.
+3. Prepare `pytest.ini` file with the configuration for `pytest`. We could also put this in `pyproject.toml`,
+   this depends on personal preference.
+    ```toml
+    [pytest]
+    env_files = ./config/.env.test
+    ```
+4. Create `tests` directory, where we will implement tests.
+5. Implement the basic test for settings. It should check if settings are loaded correctly
+   and contain all the expected values.
+6. Write test cases for the application that cover that server returns valid response for /health and / endpoints. Use [TestClient](https://fastapi.tiangolo.com/tutorial/testing/#using-testclient)
+7. Run the tests using the following command:
+    ```bash
+    uv run pytest tests -rP
+    ```
+    If you encounter a problem where `pytest` can't load `src` module, try adding the project
+    root explicitly to its PYTHONPATH config:
+    ```
+    PYTHONPATH = .
+    ```
+8. Commit the changes.
 
 ---
 
@@ -503,47 +515,49 @@ it manages multi-container environments. However, it's also very useful even for
 as it uses a very readable YAML configuration file.
 
 1. Make sure you have Docker installed on your local machine, e.g. run `docker ps`.
-2. Let's containerize our application, i.e. put code inside an isolated container.
-   Create a Dockerfile (literally `Dockerfile` text file) in the project directory 
-   and define the Docker image for the application. Change the directory names if necessary.
+
+2. Create a `.dockerignore` file in the project directory to exclude unnecessary files from the build:
+    ```
+    .venv/
+    __pycache__/
+    *.pyc
+    .git/
+    .pytest_cache/
+    ```
+    This prevents the local virtual environment from being copied into the image, which is important since virtual environments are platform-specific.
+
+3. Let's containerize our application using modern Docker best practices. Create a Dockerfile in the project directory:
     ```dockerfile
     # Dockerfile
     
-    # Use a minimal Python image as the base
-    FROM python:3.12-slim
+    # Use the official uv image with Python 3.12 pre-installed
+    FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
     
     # Set the working directory in the container
     WORKDIR /app
     
-    # Install required system dependencies
-    RUN apt-get update && apt-get install -y \
-        curl libsnappy-dev make gcc g++ libc6-dev libffi-dev \
-        && rm -rf /var/lib/apt/lists/*
+    # Enable bytecode compilation for faster startup times
+    ENV UV_COMPILE_BYTECODE=1
     
-    # Install uv package manager
-    RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-        export PATH="/root/.local/bin:$PATH"
+    # Use copy mode instead of hardlinks when using cache mounts
+    ENV UV_LINK_MODE=copy
     
-    # Add uv to PATH
-    ENV PATH="/root/.local/bin:$PATH"
-    
-    # Copy only dependency files first (to leverage caching)
-    COPY lab/pyproject.toml lab/uv.lock ./
-    
-    # Install project dependencies using uv
-    ENV UV_PROJECT_ENVIRONMENT=/usr/local
-    RUN uv sync
+    # Install dependencies first (separate layer for better caching)
+    # --mount=type=cache: reuses downloaded packages between builds
+    # --mount=type=bind: temporarily mounts files without copying them
+    # --no-install-project: First installs only dependencies, then the project
+    # --no-dev: Excludes development dependencies from production image
+    RUN --mount=type=cache,target=/root/.cache/uv \
+        --mount=type=bind,source=uv.lock,target=uv.lock \
+        --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+        uv sync --frozen --no-install-project --no-dev
     
     # Copy the rest of the application code
-    COPY lab . 
+    ADD . /app
     
-    # Expose the application port
-    EXPOSE 8000
-    
-    # Run the application with uv
+    # Run the application with uvicorn, binding to all interfaces on port 8000
     CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
     ```
-
 3. Build the Docker image with command below. This will download base image, apply all layers, and save the
    resulting image in your local Docker registry. `-t` or `--tag` adds a named tag to the image, allowing
    you to use that tag instead of randomly generated ID.
@@ -554,19 +568,21 @@ as it uses a very readable YAML configuration file.
 
 4. Run the Docker container. We select the image by providing a tag. We also **expose** a port - by default
    Docker containers run in a complete network isolation, but here we want to access the server running in
-   the container from our host machine.
+   the container from our host machine. The `--rm` flag automatically removes the container when it stops.
     ```bash
     docker run --rm -p 8000:8000 ml-app
     ```
     To see the running containers, run `docker ps`.
 
 5. Open the browser and navigate to http://localhost:8000. Verify that the application is running.
-6. Commit the changes.
-7. To stop and turn off the container, you can use either container ID or its name. You can check them
-   with `docker ps`.
-```bash
-docker stop <container-id>
-```
+
+6. To stop the container, press `Ctrl+C` in the terminal where it's running or
+   ```bash
+   docker ps -a # then <copy container-id> you want to delete
+   docker stop <container-id>
+   ```
+7. Commit the changes.
+
 
 Last thing will be setting up Docker Compose. Here, we have only a single container with our server,
 but we could also add databases (e.g. Postgres, Redis) or frontend (e.g. React). We can also define
@@ -579,6 +595,7 @@ that we previously passed manually in the commandline to Docker. This makes it v
 for single container applications, as we don't have to type everything each time.
 
 1. Make sure you have Docker Compose installed, e.g. run `docker compose ps`
+
 2. Create `docker-compose.yaml` file:
     ```yaml
     services:
@@ -586,13 +603,44 @@ for single container applications, as we don't have to type everything each time
         build: .
         ports:
           - "8000:8000"
+        develop:
+          # Watch configuration for development
+          # Syncs code changes without rebuilding the image
+          watch:
+            # Sync the working directory with /app in container
+            - action: sync
+              path: .
+              target: /app
+              # Exclude the virtual environment (platform-specific)
+              ignore:
+                - .venv/
+            # Rebuild image when dependencies change
+            - action: rebuild
+              path: ./pyproject.toml
     ```
+
 3. Run the application:
     ```bash
     docker compose up
     ```
+
 4. Open the browser and navigate to http://localhost:8000. Verify that the application is running.
-5. Turn off with:
+
+5. (Optional) For development with live reload, use the watch feature:
+    ```bash
+    docker compose watch
+    ```
+    This will automatically sync code changes to the container without rebuilding.
+
+6. Turn off with:
     ```bash
     docker compose down
     ```
+
+**Docker Compose watch explained:**
+- `sync` action: Copies file changes into the running container immediately
+- `ignore: .venv/`: Prevents syncing the local virtual environment (which is platform-specific)
+- `rebuild` action: Triggers a full image rebuild when dependencies change
+- This setup allows you to edit code locally and see changes reflected in the container without manual rebuildsontainer dependencies, such as "application is ready when all containers are up" or "run frontend
+after backend containers are up". Either publicly available images can be used, or our custom ones,
+possibly with multiple Dockerfiles defining distinct services.

@@ -15,10 +15,11 @@ Instructions:
     - `pyproject.toml`
     - `uv.lock`
 - To run the inference mentioned below, you need:
+    - `scikit-learn`
     - `clean-text`
     - `joblib`
     - `torch`
-    - `transformers`
+    - `sentence_transformers`
 - To finish all the tasks, you will also need further dependencies. Add them as necessary. All are mentioned
   in the lab instruction, in code, or in the docstring of prepared `inference.py` script.
 - Use [dependency groups](https://docs.astral.sh/uv/concepts/projects/dependencies/#development-dependencies)
@@ -42,6 +43,7 @@ Implement FastAPI webserver for inference, which should have:
 - a single endpoint `/predict`, accepting POST requests
 - Pydantic model validating request  (input), JSON with single key `text` (string)
 - Pydantic model validating response (output), JSON with single key `prediction` (string)
+- Fow now, before you stard next point, you can return always 'positive'
 
 To test the application, you can use [Swagger UI](https://fastapi.tiangolo.com/#interactive-api-docs)
 (provided by FastAPI), `curl`, `requests` or any other library. `curl` code would be:
@@ -64,7 +66,7 @@ The sample expected response is:
 Your teammate, the data scientist, has already prepared the sentiment analysis model for you: logistic
 regression on top of Sentence Transformer embeddings. Transformer was saved with `sentence-transformers`
 library, and logistic regression with `joblib` (for an overview of alternatives, see [scikit-learn docs](https://scikit-learn.org/stable/model_persistence.html)).
-He shared it with Google Drive: https://drive.google.com/file/d/1_mUpuyHuF6gASW8v72N2vgUDh16D7xsO/view?usp=sharing.
+He shared it with Google Drive: https://drive.google.com/file/d/1NRZdYq5jweVRUzAZG518LMhs4E56IgxG/view?usp=share_link
 
 Download and unpack the model. It contains two models, that you need to load and integrate.
 See `sentence-transformers` and scikit-learn docs for model loading instructions.
@@ -89,20 +91,17 @@ Implement unit tests with `pytest`:
 Implement Docker and Docker Compose to containerize your application, so it:
 - is packaged in a Docker container, with code and model
 - contains all required inference dependencies
+- use official uv Docker image 
+- create `.dockerignore` file to exclude `.venv/`, `__pycache__/`, etc
+- use cache mounts (`--mount=type=cache`) for faster rebuilds
+- use bind mounts (`--mount=type=bind`) for dependency files
 - is runnable using `docker compose up`
 - is accessible on `http://localhost:8000`
 
-For base image, we recommend `slim-bookworm` from https://hub.docker.com/_/python. Note that
-it should have the same Python version as your application.
-
-Validate that everything works by running Docker Compose and making queries to the webserver.
-
-## 7. Bonus exercise (2 extra points)
-
-Optimize your Dockerfile:
-- use small, lightweight base image
-- install `uv` inside the Dockerfile, copy `pyproject.toml` and `uv.lock`, install dependencies
-- split the Dockerfile layers to use a [multi-stage build](https://docs.docker.com/build/building/multi-stage/):
-  - first stage should install dependencies
-  - second stage should copy the application code
-- compare the Docker image size of your original solution from exercise 5 and this one
+## Grading:
+- section 1: 2 points
+- section 2: 1 point
+- section 3: 2 points
+- section 4: 2 points
+- section 5: 1 point
+- section 6: 2 points
