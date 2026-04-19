@@ -24,7 +24,7 @@ Note that you should also activate `uv` project and install dependencies with `u
 
 **Lab**
 
-See [lab instruction](LAB_INSTRUCTION.md).
+See [lab instruction](LAB_INSTRUCTION.ipynb).
 
 **Homework**
 
